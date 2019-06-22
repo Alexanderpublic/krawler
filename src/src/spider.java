@@ -28,7 +28,7 @@ public class spider {
     BulkProcessor bulkProcessor;
     private static final int MAX_PAGES_TO_SEARCH = 10000;
     private Set<String> pagesVisited = Collections.synchronizedSet(new HashSet<>());
-    private final List<String> pagesToVisit = Collections.synchronizedList(new LinkedList<>());
+    private List<String> pagesToVisit = Collections.synchronizedList(new LinkedList<>());
     private byte[] local = new byte[]{127, 0, 0, 1};
 
     /**
@@ -58,8 +58,8 @@ public class spider {
         return currentUrl;
     }
 
-    synchronized void task(spiderLeg leg) {
-        leg.crawl(currUrl(), bulkProcessor); // Lots of stuff happening here. Look at the crawl method in
+    synchronized void task(spiderLeg leg, String goal, String exclude, String include, String noneq) {
+        leg.crawl(currUrl(), bulkProcessor, goal, exclude, include, noneq); // Lots of stuff happening here. Look at the crawl method in
         // spiderLeg
         System.out.println(String.format("**Done** Visited %s web page(s)", this.pagesVisited.size()));
         this.pagesToVisit.addAll(leg.getLinks());
@@ -72,7 +72,7 @@ public class spider {
      * @param url        - The starting point of the spider
      * //@param searchWord - The word or string that you are searching for
      */
-    public void search(String url) {
+    public void search(String url, String goal, String exclude, String include, String noneq, int nTreads) {
         spiderLeg leg1 = new spiderLeg();
         {
             try {
@@ -120,19 +120,21 @@ public class spider {
                 .setBackoffPolicy(
                         BackoffPolicy.exponentialBackoff(TimeValue.timeValueMillis(100), 3))
                 .build();
-        leg1.crawl(url, bulkProcessor);
+        leg1.crawl(url, bulkProcessor, goal, exclude, include, noneq);
         this.pagesToVisit.addAll(leg1.getLinks());
         while (this.pagesVisited.size() < MAX_PAGES_TO_SEARCH) {
-            spiderLeg leg = new spiderLeg();
             Callable task = () -> {
-                task(leg);
+                spiderLeg leg = new spiderLeg();
+                task(leg, goal, exclude, include, noneq);
                 return true;
             };
-            ExecutorService service = Executors.newFixedThreadPool(8);
+            ExecutorService service = Executors.newFixedThreadPool(nTreads);
             Future result = service.submit(task);
             service.shutdown();
         }
         client.close();
+        pagesVisited = null;
+        pagesToVisit = null;
     }
 
 }
