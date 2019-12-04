@@ -1,40 +1,36 @@
 package src;
 
-import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.TransportAddress;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.transport.client.PreBuiltTransportClient;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-
-import static java.lang.System.currentTimeMillis;
 
 public class spider {
     // Fields
     Client client;
-    BulkProcessor bulkProcessor;
-    private static final int MAX_PAGES_TO_SEARCH = 10000;
+    BulkProcessor bulkProcessor = null;
+    private static final int MAX_PAGES_TO_SEARCH = 1200;
     private Set<String> pagesVisited = Collections.synchronizedSet(new HashSet<>());
     private List<String> pagesToVisit = Collections.synchronizedList(new LinkedList<>());
     private byte[] local = new byte[]{127, 0, 0, 1};
+    Scanner in = new Scanner(System.in);
+    private String url;
+    private String goal;
+    private String exclude;
+    private String startWith;
+    private String noneq;
+    private String category;
 
-    /**
-     * Returns the next URL to visit (in the order that they were found). We also do a check to make
-     * sure this method doesn't return a URL that has already been visited.
-     */
+    public spider(String u, String g, String e, String s, String n, String c){
+        url = u;
+        goal = g;
+        exclude = e;
+        startWith = s;
+        noneq = n;
+        category = c;
+        pagesToVisit.add(u);
+    }
+
     private String nextUrl() {
         //System.out.println("nurl");
         String nextUrl;
@@ -47,7 +43,7 @@ public class spider {
         return nextUrl;
     }
 
-    public String currUrl() {
+    private String currUrl() {
         //System.out.println("curl");
         String currentUrl = null;
         if (this.pagesToVisit.isEmpty()) {
@@ -58,32 +54,27 @@ public class spider {
         return currentUrl;
     }
 
-    synchronized void task(spiderLeg leg, String goal, String exclude, String include, String noneq) {
-        leg.crawl(currUrl(), bulkProcessor, goal, exclude, include, noneq); // Lots of stuff happening here. Look at the crawl method in
+    synchronized void task(spiderLeg leg, Scanner in) {
+        leg.crawl(currUrl(), bulkProcessor, goal, exclude, startWith, noneq, this.in, category); // Lots of stuff happening here. Look at the crawl method in
         // spiderLeg
         System.out.println(String.format("**Done** Visited %s web page(s)", this.pagesVisited.size()));
-        this.pagesToVisit.addAll(leg.getLinks());
+        List<String> r = leg.getLinks();
+        this.pagesToVisit.addAll(r);
+        System.out.println(this.pagesToVisit.size()+" links left");
     }
 
-    /**
-     * Our main launching point for the Spider's functionality. Internally it creates spider legs
-     * that make an HTTP request and parse the response (the web page).
-     *
-     * @param url        - The starting point of the spider
-     * //@param searchWord - The word or string that you are searching for
-     */
-    public void search(String url, String goal, String exclude, String include, String noneq, int nTreads) {
-        spiderLeg leg1 = new spiderLeg();
-        {
+    public void search() throws InterruptedException {
+        spiderLeg leg = new spiderLeg();
+        /*{
             try {
                 Settings settings = Settings.builder()
-                        .put("cluster.name","elasticsearch")         /*"docker-cluster"*/
-                        //.put("client.transport.ping_timeout","10")
+                        .put("cluster.name","elasticsearch")
+                        .put("client.transport.ping_timeout","10")
                         .put("client.transport.sniff", true)
                         .build();
                 client = new PreBuiltTransportClient(settings)
                         .addTransportAddress(new TransportAddress(InetAddress.getByAddress(local), 9300));
-                System.out.println("ElasticSearch connected");
+                //System.out.println("ElasticSearch connected");
             } catch (UnknownHostException e) {
                 e.printStackTrace();
                 System.out.println("Not connected");
@@ -119,22 +110,13 @@ public class spider {
                 .setConcurrentRequests(1)
                 .setBackoffPolicy(
                         BackoffPolicy.exponentialBackoff(TimeValue.timeValueMillis(100), 3))
-                .build();
-        leg1.crawl(url, bulkProcessor, goal, exclude, include, noneq);
-        this.pagesToVisit.addAll(leg1.getLinks());
-        while (this.pagesVisited.size() < MAX_PAGES_TO_SEARCH) {
-            Callable task = () -> {
-                spiderLeg leg = new spiderLeg();
-                task(leg, goal, exclude, include, noneq);
-                return true;
-            };
-            ExecutorService service = Executors.newFixedThreadPool(nTreads);
-            Future result = service.submit(task);
-            service.shutdown();
+                .build();*/
+        while (this.pagesVisited.size() <= MAX_PAGES_TO_SEARCH) {
+            task(leg,in);
+            Thread.sleep(1000);
         }
-        client.close();
-        pagesVisited = null;
-        pagesToVisit = null;
+        in.close();
+        //client.close();
     }
 
 }

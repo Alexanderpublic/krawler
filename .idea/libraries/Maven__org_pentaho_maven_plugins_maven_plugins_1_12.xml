@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Maven: org.pentaho.maven.plugins:maven-plugins:1.12">
+    <CLASSES />
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/pentaho/maven/plugins/maven-plugins/1.12/maven-plugins-1.12-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/pentaho/maven/plugins/maven-plugins/1.12/maven-plugins-1.12-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
